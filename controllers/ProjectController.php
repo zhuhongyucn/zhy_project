@@ -17,17 +17,15 @@ use app\models\AProject;
 use app\commond\helps;
 use yii\db\Query;
 
-
 class ProjectController extends BasicController
 {
     public function init()
     {
        parent::init();
     }
-
     /**
      * http://www.api.com/position/index
-     * 获取
+     * 获取项目列表
      */
     public function actionGetlist()
     {
@@ -60,19 +58,17 @@ class ProjectController extends BasicController
             ->andFilterWhere(['secretary_tag_id'=>$secretarytagId])
             ->andFilterWhere(['id'=>$projectId])
             ->andFilterWhere(['year'=>$time])
-            ->orderBy('sort ASC,money DESC')->asArray()->all();
+            ->orderBy('sort ASC,money DESC')
+            ->asArray()
+            ->all();
         //判断该用户是否有部门
         $isPosition = AUser::getUserIsPosition($uid);
         //查询该用户的参与项目
-        $joinProjectId = AProjectExt::find()
-            ->select('project_id')
-            ->where(['uid'=>$uid])
-            ->asArray()->column();
+        $joinProjectId = AProjectExt::find()->select('project_id')->where(['uid'=>$uid])->asArray()->column();
         $joinProject = [];
         if ($joinProjectId) {
             $joinProject = AProject::find()
                 ->where(['in','id',$joinProjectId])
-
                 ->andWhere(['!=','status',4])
                 ->andWhere(['!=','create_uid',$uid])
                 ->andFilterWhere(['position_id'=>$postionId])
@@ -80,7 +76,8 @@ class ProjectController extends BasicController
                 ->andFilterWhere(['secretary_tag_id'=>$secretarytagId])
                 ->andFilterWhere(['year'=>$time])
                 ->orderBy('sort ASC,money DESC')
-                ->asArray()->all();
+                ->asArray()
+                ->all();
         }
         $data = array_merge($createProject,$joinProject);
         $projects = 0;
@@ -113,8 +110,7 @@ class ProjectController extends BasicController
                         if ($nowTime > $item['start_time']) {
                             $usedTime = helps::timediff($nowTime,$item['start_time']);
                         }
-                        $manage_uid = AProjectExt::find()->select('uid')
-                            ->where(['project_id'=>$item['id'],'is_manage'=>1])->asArray()->scalar();
+                        $manage_uid = AProjectExt::find()->select('uid')->where(['project_id'=>$item['id'],'is_manage'=>1])->asArray()->scalar();
                         $item['start_time'] = date('Y-m-d H:i:s',$item['start_time']);
                         $item['allow_add'] = $item['allow_add'] == 1 ?  true : false;
                         $item['status'] = intval($item['status']);
@@ -124,10 +120,8 @@ class ProjectController extends BasicController
                         $item['manage_uid']  = $manage_uid ? $manage_uid : 0;
                         $item['finish_progress'] = $finish_progress;
                         $item['money'] = empty($item['money']) ? 0 : trim($item['money']);
-                        $item['concern_num'] = AProjectFollow::getFollowNum
-                        ($item['id']);
-                        $item['concern_state'] = AProjectFollow::getFollowNum
-                        ($item['id'],$uid);
+                        $item['concern_num'] = AProjectFollow::getFollowNum($item['id']);
+                        $item['concern_state'] = AProjectFollow::getFollowNum($item['id'],$uid);
                         $newData[] = $item;
                         $projectAllStep = helps::getProjectModelAndCateLog($item['id']);
                         $remark = [];
@@ -150,9 +144,7 @@ class ProjectController extends BasicController
                     if ($nowTime > $item['start_time']) {
                         $usedTime = helps::timediff($nowTime,$item['start_time']);
                     }
-                    $manage_uid = AProjectExt::find()->select('uid')
-                        ->where(['project_id'=>$item['id'],'is_manage'=>1])->asArray()->scalar();
-
+                    $manage_uid = AProjectExt::find()->select('uid')->where(['project_id'=>$item['id'],'is_manage'=>1])->asArray()->scalar();
                     $data[$key]['start_time'] = date('Y-m-d H:i:s',$item['start_time']);
                     $data[$key]['allow_add'] = $item['allow_add'] == 1 ?  true : false;
                     $data[$key]['status'] = intval($item['status']);
@@ -162,10 +154,8 @@ class ProjectController extends BasicController
                     $data[$key]['manage_uid']  = $manage_uid ? $manage_uid : 0;
                     $data[$key]['finish_progress'] = $finish_progress;
                     $data[$key]['money'] = empty($item['money']) ? 0 : trim($item['money']);
-                    $data[$key]['concern_num'] = AProjectFollow::getFollowNum
-                    ($item['id']);
-                    $data[$key]['concern_state'] = AProjectFollow::getFollowNum
-                    ($item['id'],$uid);
+                    $data[$key]['concern_num'] = AProjectFollow::getFollowNum($item['id']);
+                    $data[$key]['concern_state'] = AProjectFollow::getFollowNum($item['id'],$uid);
                     $projectAllStep = helps::getProjectModelAndCateLog($item['id']);
                     $remark = [];
                     if ($projectAllStep) {
@@ -201,38 +191,34 @@ class ProjectController extends BasicController
         ]);
     }
 
-
+    /**
+     * 搜索
+     */
     public function actionSearch()
     {
         $mobile = $this->getParam('mobile',false,0);
-
         if  (isset($mobile) && !empty($mobile)){
             $uid = AUser::find()->select('id')->where(['phone'=>$mobile,'status'=>0])->asArray()->scalar();
         } else {
             $uid = $this->getParam('userId',true);
-           
         }
-
         $time = substr($this->getParam('time',true),0,4);
         $page  = $this->getParam('pageNum',true,null);
         $size  = $this->getParam('rp',true,null);
         $keyword = $this->getParam('keywords',true);
-
         //查询该用户创建的项目
         $createProejct = AProject::find()
             ->where(['create_uid'=>$uid])
             ->andWhere(['!=','status',4])
             ->andWhere(['like','name',$keyword])
             ->andFilterWhere(['year'=>$time])
-            ->orderBy('sort ASC,id DESC')->asArray()->all();
+            ->orderBy('sort ASC,money DESC')
+            ->asArray()
+            ->all();
         //判断该用户是否有部门
         $isPosition = AUser::getUserIsPosition($uid);
         //查询该用户的参与项目
-        $joinProjectId = AProjectExt::find()
-            ->select('project_id')
-            ->where(['uid'=>$uid])
-            ->asArray()->column();
-
+        $joinProjectId = AProjectExt::find()->select('project_id')->where(['uid'=>$uid])->asArray()->column();
         $joinProject = [];
         if ($joinProjectId) {
             $joinProject = AProject::find()
@@ -241,8 +227,9 @@ class ProjectController extends BasicController
                 ->andWhere(['!=','create_uid',$uid])
                 ->andWhere(['like','name',$keyword])
                 ->andFilterWhere(['year'=>$time])
-                ->orderBy('sort ASC,id DESC')
-                ->asArray()->all();
+                ->orderBy('sort ASC,money DESC')
+                ->asArray()
+                ->all();
         }
         $data = array_merge($createProejct,$joinProject);
         $projects = 0;
@@ -257,9 +244,7 @@ class ProjectController extends BasicController
                     if ($nowTime > $item['start_time']) {
                         $usedTime = helps::timediff($nowTime,$item['start_time']);
                     }
-                    $manage_uid = AProjectExt::find()->select('uid')
-                        ->where(['project_id'=>$item['id'],'is_manage'=>1])->asArray()->scalar();
-
+                    $manage_uid = AProjectExt::find()->select('uid')->where(['project_id'=>$item['id'],'is_manage'=>1])->asArray()->scalar();
                     //项目所选模板数量
                     $catalog_id_arr = helps::getProjectModelBottomNum($item['id']);
                     $file_agree_num = 0;
@@ -267,8 +252,7 @@ class ProjectController extends BasicController
                     $model_num = count($catalog_id_arr);
                     if ($model_num) {
                         //项目通过文件数量
-                        $file_agree_num = (int)helps::getProjectAgreeFileNum
-                        ($item['id'],$catalog_id_arr);
+                        $file_agree_num = (int)helps::getProjectAgreeFileNum($item['id'],$catalog_id_arr);
                         //项目进度
                         if ($file_agree_num > 0) {
                             $finish_progress = intval($file_agree_num) / intval($model_num) * 100;
@@ -285,10 +269,8 @@ class ProjectController extends BasicController
                     $item['file_agree_num'] = $file_agree_num;
                     $item['finish_progress'] = $finish_progress;
                     $item['money'] = empty($item['money']) ? 0 : $item['money'];
-                    $item['concern_num'] = AProjectFollow::getFollowNum
-                    ($item['id']);
-                    $item['concern_state'] = AProjectFollow::getFollowNum
-                    ($item['id'],$uid);
+                    $item['concern_num'] = AProjectFollow::getFollowNum($item['id']);
+                    $item['concern_state'] = AProjectFollow::getFollowNum($item['id'],$uid);
                     $newData[] = $item;
                     $projectAllStep = helps::getProjectModelAndCateLog($item['id']);
                     $remark = [];
@@ -308,8 +290,6 @@ class ProjectController extends BasicController
                 }
             }
         }
-
-
         $this->Success(['data'=>$newData,
             'isCertified'=>$isPosition,
             'totalSize'=>$projects,

@@ -41,6 +41,7 @@ class ASecretaryTag extends \yii\db\ActiveRecord
         return [
             'id' => 'ID',
             'name' => 'Name',
+            'position_ids' => 'Position Ids',
             'create_uid' => 'Create Uid',
             'create_time' => 'Create Time',
         ];

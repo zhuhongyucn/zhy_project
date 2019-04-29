@@ -10,6 +10,7 @@ use app\models\APositionApply;
 use app\models\AProject;
 use app\models\ASecretaryTag;
 use app\models\AUser;
+use app\models\AUserPosition;
 use Yii;
 use app\commond\Constants;
 use app\commond\helps;
@@ -23,11 +24,9 @@ use yii\base\Exception;
 
 class UserController extends BasicController
 {
-
     public function init(){
        parent::init();
     }
-
     /**
      * 登录
      */
@@ -45,7 +44,6 @@ class UserController extends BasicController
             } else {
                 $this->Error(Constants::PASSWORD_ERROR,Constants::$error_message[Constants::PASSWORD_ERROR]);
             }
-
         } else if ($username == Constants::TEST_USER) {
             if (md5($password) == md5(Constants::TEST_USER)) {
                 $user = AUser::find()
@@ -82,14 +80,12 @@ class UserController extends BasicController
      * 获取成员列表
      * @return array
      */
-
     public function actionIndex()
     {
         $data = APosition::find()->select('id as positionId,name as positionName')->where(['status'=>0])->asArray()->all();
         if (!$data) {
             $this->Success(['data'=>[]]);
         }
-
         foreach ($data as &$item) {
             $user = AUser::find()->select('id as userId,true_name as trueName,sys_position as type')
                 ->where(['position_id'=>$item['positionId'],'status'=>0])->asArray()->all();
@@ -99,15 +95,12 @@ class UserController extends BasicController
 
     }
 
-
     /**获取申请部门成员列表接口
      * @return array
      */
     public function actionGetApplyList()
     {
-        $data = APositionApply::find()->where(['status'=>0])
-            ->orderBy('create_time DESC')->asArray()->all();
-
+        $data = APositionApply::find()->where(['status'=>0])->orderBy('create_time DESC')->asArray()->all();
         if (!$data) {
             $this->Success(['data'=>[]]);
         }
@@ -121,7 +114,6 @@ class UserController extends BasicController
                 'phone' =>$userInfo['phone']
             ];
         }
-
         $result = [];
         foreach ($user as $positionId=>$value) {
             $position = APosition::find()->select('name')
@@ -132,10 +124,8 @@ class UserController extends BasicController
                 'positionUser'=>$user[$positionId]
             ];
         }
-
         $this->Success(['data'=>$result]);
     }
-
     /**用户修改个人资料接口
      * @return array
      */
@@ -145,9 +135,7 @@ class UserController extends BasicController
         $phone  = $this->getParam('phone',false);
         $realName = $this->getParam('realName',false);
         $email = $this->getParam('email',false);
-
         $user = AUser::findOne(['id'=>$userId]);
-
         if (!$user) {
             $this->Error(Constants::USER_NOT_FOUND,Constants::$error_message[Constants::USER_NOT_FOUND]);
         }
@@ -156,7 +144,6 @@ class UserController extends BasicController
             $msg.= '手机号:'.$user->phone.'改成'.$phone;
             $user->phone = $phone;
         }
-
         if ($realName) {
             $msg.= '真实姓名:'.$user->true_name.'改成'.$realName;
             $user->true_name = $realName;
@@ -168,7 +155,6 @@ class UserController extends BasicController
             $msg.= '邮箱:'.$user->email.'改成'.$email;
             $user->email = $email;
         }
-
         if ($user->save(false)) {
             helps::writeLog(Constants::OPERATION_USER,$msg,$userId);
             $this->Success();
@@ -187,12 +173,10 @@ class UserController extends BasicController
         if (!$user) {
             $this->Error(Constants::USER_NOT_FOUND,Constants::$error_message[Constants::USER_NOT_FOUND]);
         }
-        $position = APosition::find()->select('id,name')->where
-        (['id'=>$positionId,'status'=>0])->one();
+        $position = APosition::find()->select('id,name')->where(['id'=>$positionId,'status'=>0])->one();
         if (!$position) {
             $this->Error(Constants::POSITIONS_NOT_FOUND,Constants::$error_message[Constants::POSITIONS_NOT_FOUND]);
         }
-
         $exitsApply = APositionApply::find()->where(['uid'=>$userId,'status'=>0])->asArray()->one();
         if ($exitsApply) {
             APositionApply::deleteAll(['uid'=>$userId,'status'=>0]);
@@ -230,7 +214,6 @@ class UserController extends BasicController
         } else {
             $systemVersion = $newVersion[$type]['num'];
         }
-
         //只要 接口传过来的版本号比系统定义的小  就返回 提示更新
         $res = helps::versionCompare($version,$systemVersion);
         if ($res === 2) {
@@ -253,7 +236,6 @@ class UserController extends BasicController
     {
         $uid = $this->getParam('userId');
         $content = $this->getParam('content');
-
         $obj = new AMessage();
         $obj->uid = $uid;
         $obj->content = $content;
@@ -263,7 +245,6 @@ class UserController extends BasicController
         }
         $this->Error(Constants::RET_ERROR,Constants::$error_message[Constants::RET_ERROR]);
     }
-
     /**
      * 获取用户意见反馈
      * @return array
@@ -283,12 +264,10 @@ class UserController extends BasicController
 
         $uid = $this->getParam('userId');
         $name = $this->getParam('name');
-
         $obj = new ASecretaryTag();
         $obj->name = $name;
         $obj->create_uid = intval($uid);
         $obj->create_time = time();
-
         if ($obj->save()){
             $this->Success();
         }
@@ -297,25 +276,35 @@ class UserController extends BasicController
 
     /**
      * 获取书记标签
-     *
      */
     public function actionGetSecretaryList()
     {
         $userId = $this->getParam('userId',true);
-        $data = ASecretaryTag::find()->select('id,name')->asArray()->all();
-
+        //获取所有书记信息
+        $data = ASecretaryTag::find()->select('id,name,position_ids')->asArray()->all();
         if (empty($data)) {
             $this->Success(['data'=>[]]);
         }
-
         foreach ($data as $key=>$item) {
-            $projects = AProject::find()
-                ->where(['secretary_tag_id'=>$item['id'],'create_uid'=>$userId])
-                ->andWhere(['!=','status',4])
-                ->count();
+            $projects = AProject::find()->where(['secretary_tag_id'=>$item['id']])->andWhere(['!=','status',4])->count();
+            $positionArr = explode(',',$item['position_ids']);
             $data[$key]['projects'] = intval($projects);
+            $data[$key]['ratio_total_money'] = '20%';
+            $data[$key]['ratio_projects_progress'] = '21%';
+            $postionInfo = array();
+            foreach ($positionArr as $k=>$v){
+                $position = APosition::findOne($v);
+                $dt = [
+                    "id"=> $position->id,
+                    "name"=> $position->name,
+                    "projects"=>AProject::find()->where(['position_id'=>$v])->andWhere(['!=','status',4])->count(),
+                    "total_money"=>500.2,
+                ];
+                array_push($postionInfo,$dt);
+            }
+            $data[$key]['departments'] = $postionInfo;
+            unset($data[$key]['position_ids']);
         }
-
         $this->Success(['data'=>$data]);
     }
 

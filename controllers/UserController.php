@@ -280,6 +280,10 @@ class UserController extends BasicController
     public function actionGetSecretaryList()
     {
         $userId = $this->getParam('userId',true);
+        $time = $this->getParam('time','');
+        if(empty($time)){//获取当前年份
+            $time = date('Y',time());
+        }
         //获取所有书记信息
         $data = ASecretaryTag::find()->select('id,name,position_ids')->asArray()->all();
         if (empty($data)) {
@@ -287,10 +291,16 @@ class UserController extends BasicController
         }
         foreach ($data as $key=>$item) {
             $projects = AProject::find()->where(['secretary_tag_id'=>$item['id']])->andWhere(['!=','status',4])->count();
+            $money = AProject::find()->where(['secretary_tag_id'=>$item['id']])->andWhere(['!=','status',4])->sum('money');
+            $money_year = AProject::find()->where(['year'=>$time])->andWhere(['!=','status',4])->sum('money');
+            $ratio_total_money = round($money/$money_year,2)*100;
+            $num = AProject::find()->where(['secretary_tag_id'=>$item['id']])->andWhere(['=','status',2])->count();
+            $num_year = AProject::find()->where(['year'=>$time])->andWhere(['!=','status',4])->count();
+            $ratio_projects_progress = round($num/$num_year,2)*100;
             $positionArr = explode(',',$item['position_ids']);
             $data[$key]['projects'] = intval($projects);
-            $data[$key]['ratio_total_money'] = '20%';
-            $data[$key]['ratio_projects_progress'] = '21%';
+            $data[$key]['ratio_total_money'] = $ratio_total_money.'%';//该领导负责部门项目金额占总年度项目金额比例
+            $data[$key]['ratio_projects_progress'] = $ratio_projects_progress.'%';//该领导负责部门项目完成度占总年度项目比例
             $postionInfo = array();
             foreach ($positionArr as $k=>$v){
                 $position = APosition::findOne($v);
@@ -298,7 +308,7 @@ class UserController extends BasicController
                     "id"=> $position->id,
                     "name"=> $position->name,
                     "projects"=>AProject::find()->where(['position_id'=>$v])->andWhere(['!=','status',4])->count(),
-                    "total_money"=>500.2,
+                    "total_money"=>AProject::find()->where(['position_id'=>$v])->andWhere(['!=','status',4])->sum('money'),
                 ];
                 array_push($postionInfo,$dt);
             }
